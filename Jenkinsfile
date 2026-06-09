@@ -23,10 +23,9 @@ pipeline {
 
         stage('Test') {
             steps {
-                echo 'Running Tests'
                 sh '''
                     . venv/bin/activate
-                    pytest --html=report.html
+                    pytest
                 '''
             }
         }
@@ -34,15 +33,13 @@ pipeline {
         stage('Docker Build') {
             steps {
                 sh '''
-                docker build -t flask-demo:v1 .
+                    docker build -t flask-demo:v1 .
                 '''
             }
         }
 
         stage('Docker Login') {
-
             steps {
-
                 withCredentials([
                     usernamePassword(
                         credentialsId: 'dockerhub-creds',
@@ -50,43 +47,53 @@ pipeline {
                         passwordVariable: 'DOCKER_PASS'
                     )
                 ]) {
-
                     sh '''
-                    echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
+                        echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
                     '''
                 }
             }
         }
 
         stage('Push Image') {
-
             steps {
-
                 sh '''
-                docker tag flask-demo:v1 madasrushi0804/flask-demo:v1
-
-                docker push madasrushi0804/flask-demo:v1
+                    docker tag flask-demo:v1 asrdigi/flask-demo:v1
+                    docker push asrdigi/flask-demo:v1
                 '''
             }
         }
 
         stage('Kubernetes Connectivity Test') {
-
             steps {
-
                 withCredentials([
                     file(
                         credentialsId: 'kubeconfig',
                         variable: 'KUBECONFIG_FILE'
                     )
                 ]) {
-
                     sh '''
                         export KUBECONFIG=$KUBECONFIG_FILE
-
                         kubectl config current-context
-
                         kubectl get nodes
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                withCredentials([
+                    file(
+                        credentialsId: 'kubeconfig',
+                        variable: 'KUBECONFIG_FILE'
+                    )
+                ]) {
+                    sh '''
+                        export KUBECONFIG=$KUBECONFIG_FILE
+                        kubectl apply -f k8s/
+                        kubectl rollout status deployment/flask-demo
+                        kubectl get pods
+                        kubectl get svc
                     '''
                 }
             }
@@ -95,7 +102,6 @@ pipeline {
     }
 
     post {
-
         success {
             echo 'Build Successful'
         }
@@ -105,10 +111,7 @@ pipeline {
         }
 
         always {
-            archiveArtifacts artifacts: 'report.html'
             echo 'Pipeline Finished'
         }
-
     }
-
 }
