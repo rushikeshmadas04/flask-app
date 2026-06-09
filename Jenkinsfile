@@ -25,7 +25,7 @@ pipeline {
             steps {
                 sh '''
                     . venv/bin/activate
-                    pytest
+                    pytest --html=report.html
                 '''
             }
         }
@@ -56,9 +56,10 @@ pipeline {
 
         stage('Push Image') {
             steps {
+                // Use your actual Docker Hub repo username
                 sh '''
-                    docker tag flask-demo:v1 asrdigi/flask-demo:v1
-                    docker push asrdigi/flask-demo:v1
+                    docker tag flask-demo:v1 madasrushi0804/flask-demo:v1
+                    docker push madasrushi0804/flask-demo:v1
                 '''
             }
         }
@@ -111,7 +112,9 @@ pipeline {
         }
 
         always {
+            archiveArtifacts artifacts: 'report.html', allowEmptyArchive: true
             echo 'Pipeline Finished'
         }
     }
+
 }
