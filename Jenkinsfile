@@ -26,9 +26,8 @@ stages {
             echo 'Running Tests'
             sh '''
                 . venv/bin/activate
-                pytest
+                pytest --html=report.html
             '''
-            sh 'pytest --html=report.html'
         }
     }
 
