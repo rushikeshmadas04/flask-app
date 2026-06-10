@@ -1,6 +1,16 @@
 pipeline {
 
-    agent any
+    // Use a Docker-enabled agent so you don't need Docker installed in Jenkins container
+    agent {
+        docker {
+            image 'python:3.11-slim'
+            args '-u root:root -v /var/run/docker.sock:/var/run/docker.sock'
+        }
+    }
+
+    environment {
+        VENV_PATH = "${WORKSPACE}/venv"
+    }
 
     stages {
 
@@ -14,8 +24,9 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 sh '''
-                    python3 -m venv venv
-                    . venv/bin/activate
+                    python3 -m venv $VENV_PATH
+                    . $VENV_PATH/bin/activate
+                    pip install --upgrade pip
                     pip install -r requirements.txt
                 '''
             }
@@ -24,7 +35,7 @@ pipeline {
         stage('Test') {
             steps {
                 sh '''
-                    . venv/bin/activate
+                    . $VENV_PATH/bin/activate
                     pytest --html=report.html
                 '''
             }
@@ -32,9 +43,7 @@ pipeline {
 
         stage('Docker Build') {
             steps {
-                sh '''
-                    docker build -t flask-demo:v1 .
-                '''
+                sh 'docker build -t flask-demo:v1 .'
             }
         }
 
@@ -47,16 +56,13 @@ pipeline {
                         passwordVariable: 'DOCKER_PASS'
                     )
                 ]) {
-                    sh '''
-                        echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
-                    '''
+                    sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
                 }
             }
         }
 
         stage('Push Image') {
             steps {
-                // Use your actual Docker Hub repo username
                 sh '''
                     docker tag flask-demo:v1 madasrushi0804/flask-demo:v1
                     docker push madasrushi0804/flask-demo:v1
@@ -67,10 +73,7 @@ pipeline {
         stage('Kubernetes Connectivity Test') {
             steps {
                 withCredentials([
-                    file(
-                        credentialsId: 'kubeconfig',
-                        variable: 'KUBECONFIG_FILE'
-                    )
+                    file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG_FILE')
                 ]) {
                     sh '''
                         export KUBECONFIG=$KUBECONFIG_FILE
@@ -84,10 +87,7 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 withCredentials([
-                    file(
-                        credentialsId: 'kubeconfig',
-                        variable: 'KUBECONFIG_FILE'
-                    )
+                    file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG_FILE')
                 ]) {
                     sh '''
                         export KUBECONFIG=$KUBECONFIG_FILE
