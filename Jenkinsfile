@@ -56,7 +56,6 @@ pipeline {
 
         stage('Push Image') {
             steps {
-                // Use your actual Docker Hub repo username
                 sh '''
                     docker tag flask-demo:v1 madasrushi0804/flask-demo:v1
                     docker push madasrushi0804/flask-demo:v1
@@ -67,14 +66,19 @@ pipeline {
         stage('Kubernetes Connectivity Test') {
             steps {
                 withCredentials([
-                    file(
-                        credentialsId: 'kubeconfig',
-                        variable: 'KUBECONFIG_FILE'
-                    )
+                    file(credentialsId: 'kubeconfig',
+                         variable: 'KUBECONFIG_FILE')
                 ]) {
                     sh '''
                         export KUBECONFIG=$KUBECONFIG_FILE
+
+                        echo "Current Context:"
                         kubectl config current-context
+
+                        echo "Cluster Info:"
+                        kubectl cluster-info
+
+                        echo "Nodes:"
                         kubectl get nodes
                     '''
                 }
@@ -84,16 +88,23 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 withCredentials([
-                    file(
-                        credentialsId: 'kubeconfig',
-                        variable: 'KUBECONFIG_FILE'
-                    )
+                    file(credentialsId: 'kubeconfig',
+                         variable: 'KUBECONFIG_FILE')
                 ]) {
                     sh '''
                         export KUBECONFIG=$KUBECONFIG_FILE
+
                         kubectl apply -f k8s/
-                        kubectl rollout status deployment/flask-demo
+
+                        kubectl rollout status deployment/flask-demo --timeout=120s
+
+                        echo "Deployments:"
+                        kubectl get deployments
+
+                        echo "Pods:"
                         kubectl get pods
+
+                        echo "Services:"
                         kubectl get svc
                     '''
                 }

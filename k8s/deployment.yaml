@@ -1,5 +1,6 @@
 apiVersion: apps/v1
 kind: Deployment
+
 metadata:
   name: flask-demo
 
@@ -18,7 +19,8 @@ spec:
     spec:
       containers:
       - name: flask-demo
-        image: asrdigi/flask-demo:v1
+        image: madasrushi0804/flask-demo:v1
+        imagePullPolicy: Always
 
         ports:
         - containerPort: 5000
